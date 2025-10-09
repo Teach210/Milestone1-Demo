@@ -1,29 +1,16 @@
-import './App.css';
-import Dashboard from './Dashboard';
-import Login from './Login';
-import { Route, BrowserRouter as Router, Routes, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+import Login from "./Login.jsx";
+import Dashboard from "./Dashboard.jsx";
+import ChangePassword from "./ChangePassword.jsx";
+import UpdateInfo from "./UpdateInfo.jsx"; 
 
-function App() {
-  // Check if user is logged in
-  const isLoggedIn = !!localStorage.getItem("userId");
-
+export default function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Default route */}
-        <Route
-          path="/"
-          element={isLoggedIn ? <Navigate to="/dashboard" /> : <Login />}
-        />
-
-        {/* Dashboard route */}
-        <Route
-          path="/dashboard"
-          element={isLoggedIn ? <Dashboard /> : <Navigate to="/" />}
-        />
-      </Routes>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Login />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/change-password" element={<ChangePassword />} />
+      <Route path="/update-info" element={<UpdateInfo />} />
+    </Routes>
   );
 }
-
-export default App;

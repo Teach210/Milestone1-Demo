@@ -1,83 +1,86 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import "./Login.css";
+import { useNavigate } from "react-router-dom"; // 👈 import for navigation
 
 export default function Login() {
-  const [enteredEmail, setEnteredEmail] = useState("");
-  const [enteredPassword, setEnteredPassword] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate(); // 👈 used to go to the welcome page
 
-  function handleInputChange(identifier, value) {
-    if (identifier === "email") setEnteredEmail(value);
-    else setEnteredPassword(value);
-  }
-
-  const handleLogin = async () => {
-    setSubmitted(true);
-
-    // Simple validation
-    if (!enteredEmail || !enteredPassword) {
-      alert("Please fill in both fields.");
-      return;
-    }
-
-    try {
-      const response = await fetch(import.meta.env.VITE_API_KEY + "user/login", {
-        method: "POST",
-        body: JSON.stringify({ Email: enteredEmail, Password: enteredPassword }),
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log(data);
-
-        // Save user info to localStorage
-        localStorage.setItem("userId", data.result.u_id);
-        localStorage.setItem("userFirstName", data.result.u_firstname);
-        localStorage.setItem("userEmail", data.result.u_email);
-
-        navigate("/dashboard");
-      } else {
-        alert(data.message || "Login failed");
-      }
-    } catch (err) {
-      alert("Server error. Please try again later.");
-      console.error(err);
+  const handleLogin = () => {
+    if (email.trim() && password.trim()) {
+      navigate("/dashboard", { state: { userEmail: email } }); // 👈 pass email to next page
+    } else {
+      alert("Please enter both email and password.");
     }
   };
 
-  const emailNotValid = submitted && !enteredEmail.includes("@");
-  const passwordNotValid = submitted && enteredPassword.trim().length < 8;
-
   return (
-    <div id="login">
-      <div className="controls">
-        <p>
-          <label>Email</label>
-          <input
-            type="email"
-            className={emailNotValid ? "invalid" : undefined}
-            onChange={(event) => handleInputChange("email", event.target.value)}
-            value={enteredEmail}
-          />
-        </p>
-        <p>
-          <label>Password</label>
-          <input
-            type="password"
-            className={passwordNotValid ? "invalid" : undefined}
-            onChange={(event) => handleInputChange("password", event.target.value)}
-            value={enteredPassword}
-          />
-        </p>
-      </div>
-      <div className="actions">
-        <button type="button" className="button">Create a new account</button>
-        <button className="button" onClick={handleLogin}>Sign In</button>
+    <div style={styles.pageWrapper}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>Login</h1>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={styles.input}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={styles.input}
+        />
+        <button onClick={handleLogin} style={styles.button}>
+          Sign In
+        </button>
       </div>
     </div>
   );
 }
+
+const styles = {
+  pageWrapper: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100vh",
+    width: "100vw",
+    background: "linear-gradient(to bottom right, #e3f2fd, #90caf9)",
+  },
+  card: {
+    background: "#fff",
+    padding: "40px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
+    width: "350px",
+    textAlign: "center",
+  },
+  title: {
+    marginBottom: "25px",
+    fontSize: "26px",
+    color: "#1976d2",
+    fontWeight: "600",
+  },
+  input: {
+    width: "100%",
+    padding: "12px",
+    marginBottom: "18px",
+    borderRadius: "6px",
+    border: "1px solid #ccc",
+    fontSize: "16px",
+  },
+  button: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "6px",
+    border: "none",
+    backgroundColor: "#1976d2",
+    color: "#fff",
+    fontSize: "16px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "background 0.3s ease",
+  },
+};
