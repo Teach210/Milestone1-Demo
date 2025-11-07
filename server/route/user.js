@@ -2,9 +2,26 @@ import { Router } from "express";
 import { connection } from "../database/connection.js";
 import { hashPassword, comparePassword } from "../utils/helper.js";
 import { sendEmail } from "../utils/sendmail.js";
+import bcrypt from "bcrypt";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 const user = Router();
+
+// In-memory two-factor store: userId -> { code, expiresAt }
+const twoFactorStore = new Map();
+
+function generate2FACode() {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+}
 
 // --------- Registration ----------
 user.post("/register", (req, res) => {
@@ -63,46 +80,137 @@ user.get("/verify", (req, res) => {
     if (result.length === 0)
       return res.status(400).send("Invalid or expired verification token");
 
+    const userEmail = result[0].u_email;
+    const userFirstName = result[0].u_firstname;
+
     const updateQuery =
       "UPDATE user_info SET is_verified = 1, verification_token = NULL WHERE verification_token = ?";
-    connection.execute(updateQuery, [token], (err, result) => {
+    connection.execute(updateQuery, [token], async (err) => {
       if (err) return res.status(500).send("Database error");
 
-      res.send(
-        "Your account has been successfully verified! You can now log in."
-      );
+      // 🎉 Send verification success email
+      try {
+        await sendEmail(
+          userEmail,
+          "Your Email Has Been Verified!",
+          `
+          <h2>Congratulations, ${userFirstName}!</h2>
+          <p>Your email has been successfully verified.</p>
+          <p>You may now log in using your account credentials.</p>
+        `
+        );
+
+        // Redirect to login page
+        return res.redirect("http://localhost:5173/login");
+
+      } catch (emailErr) {
+        console.error("EMAIL SEND ERROR:", emailErr);
+        return res.send(`
+          <h2>Your account is verified, but we couldn't send a confirmation email.</h2>
+          <p>You can still <a href="http://localhost:5173/login">log in</a> now.</p>
+        `);
+      }
     });
   });
 });
 
+
+
 // --------- Login ----------
-user.post("/login", (req, res) => {
-  const { Email, Password } = req.body;
+user.post("/login", async (req, res) => {
+  const { email, password } = req.body;
 
   connection.execute(
     "SELECT * FROM user_info WHERE u_email = ?",
-    [Email],
-    (err, result) => {
+    [email],
+    async (err, result) => {
       if (err) return res.status(500).json({ message: err.message });
       if (result.length === 0)
         return res.status(401).json({ message: "Invalid email or password" });
 
       const user = result[0];
+
       if (!user.is_verified)
         return res
           .status(403)
           .json({ message: "Please verify your email first" });
 
-      const isMatch = comparePassword(Password, user.u_password);
+      const isMatch = await bcrypt.compare(password, user.u_password);
       if (!isMatch)
         return res.status(401).json({ message: "Invalid email or password" });
 
-      res
-        .status(200)
-        .json({ status: "success", message: "Login successful", result: user });
+      // Generate and send 2FA code via email instead of completing login immediately
+      const code = generate2FACode();
+      const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+      twoFactorStore.set(user.u_id, { code, expiresAt });
+
+      const subject = "Your login verification code";
+      const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
+      // Development: also log the code to the server console so devs can see it when email is not available
+      console.log(`2FA code for ${user.u_email} (id ${user.u_id}): ${code}`);
+      try {
+        await sendEmail(user.u_email, subject, htmlBody);
+      } catch (emailErr) {
+        console.error("2FA EMAIL ERROR:", emailErr);
+        // don't reveal email error details to client
+      }
+
+      // Tell client that 2FA is required and return the user id so client can verify
+      return res.status(200).json({ status: "2fa_required", message: "2FA code sent", userId: user.u_id, email: user.u_email });
     }
   );
 });
+
+// Verify 2FA code
+user.post("/verify-2fa", (req, res) => {
+  const { userId, code } = req.body;
+  if (!userId || !code) return res.status(400).json({ message: "userId and code are required" });
+
+  const record = twoFactorStore.get(Number(userId));
+  if (!record) return res.status(401).json({ message: "No pending 2FA for this user" });
+  if (Date.now() > record.expiresAt) {
+    twoFactorStore.delete(Number(userId));
+    return res.status(401).json({ message: "2FA code expired" });
+  }
+
+  if (record.code !== String(code).trim()) {
+    return res.status(401).json({ message: "Invalid 2FA code" });
+  }
+
+  // Verified - cleanup and return full user object so client can finish login
+  twoFactorStore.delete(Number(userId));
+  connection.execute("SELECT * FROM user_info WHERE u_id = ?", [userId], (err, result) => {
+    if (err) return res.status(500).json({ message: err.message });
+    if (result.length === 0) return res.status(404).json({ message: "User not found" });
+    return res.status(200).json({ status: "success", message: "2FA verified", result: result[0] });
+  });
+});
+
+// Resend 2FA code
+user.post("/resend-2fa", (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ message: "userId is required" });
+
+  connection.execute("SELECT * FROM user_info WHERE u_id = ?", [userId], async (err, result) => {
+    if (err) return res.status(500).json({ message: err.message });
+    if (result.length === 0) return res.status(404).json({ message: "User not found" });
+    const user = result[0];
+    const code = generate2FACode();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    twoFactorStore.set(user.u_id, { code, expiresAt });
+    const subject = "Your login verification code (resend)";
+    const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
+    console.log(`2FA code (resend) for ${user.u_email} (id ${user.u_id}): ${code}`);
+    try {
+      await sendEmail(user.u_email, subject, htmlBody);
+      return res.json({ status: "ok", message: "2FA code resent" });
+    } catch (emailErr) {
+      console.error("2FA RESEND EMAIL ERROR:", emailErr);
+      return res.status(500).json({ message: "Failed to send code" });
+    }
+  });
+});
+
 
 // --------- Get all users ----------
 user.get("/", (req, res) => {
@@ -120,6 +228,17 @@ user.get("/:id", (req, res) => {
     if (result.length === 0)
       return res.status(404).json({ message: "User not found" });
     res.json({ status: 200, result: result[0] });
+  });
+});
+
+// --------- Get user profile (returns user object directly) ----------
+user.get("/profile/:id", (req, res) => {
+  const query = "SELECT u_id, u_firstname, u_lastname, u_email, is_verified, is_admin, verification_token, reset_token FROM user_info WHERE u_id = ?";
+  connection.execute(query, [req.params.id], (err, result) => {
+    if (err) return res.status(500).json({ message: err.message });
+    if (result.length === 0) return res.status(404).json({ message: "User not found" });
+    // return the user object directly (not wrapped)
+    res.json(result[0]);
   });
 });
 
@@ -169,7 +288,7 @@ user.post("/forgot-password", async (req, res) => {
       if (err) return res.status(500).json({ message: err.message });
 
       // Send email
-      const resetLink = `http://localhost:5173/resetPassword.html?token=${resetToken}`;
+      const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
       const subject = "Password Reset Request";
       const htmlBody = `<p>Click the link below to reset your password:</p>
         <a href="${resetLink}">Reset Password</a>`;

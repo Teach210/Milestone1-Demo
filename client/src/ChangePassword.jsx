@@ -1,18 +1,23 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("");
+  const navigate = useNavigate();
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword) {
       setMessage("Please fill out both fields.");
+      setMessageType("error");
       return;
     }
 
     if (currentPassword === newPassword) {
       setMessage("New password cannot be the same as current password.");
+      setMessageType("error");
       return;
     }
 
@@ -20,6 +25,9 @@ export default function ChangePassword() {
       const userId = localStorage.getItem("userId");
       if (!userId) {
         setMessage("User not logged in.");
+        setMessageType("error");
+        // Redirect to login to prompt user to sign in
+        navigate("/login");
         return;
       }
 
@@ -33,13 +41,16 @@ export default function ChangePassword() {
 
       if (res.ok) {
         setMessage("Password changed successfully!");
+        setMessageType("success");
         setCurrentPassword("");
         setNewPassword("");
       } else {
         setMessage(data.message || "Error changing password.");
+        setMessageType("error");
       }
     } catch (err) {
       setMessage("Server error. Try again later.");
+      setMessageType("error");
       console.error(err);
     }
   };
@@ -69,7 +80,16 @@ export default function ChangePassword() {
           Update Password
         </button>
 
-        {message && <p style={styles.message}>{message}</p>}
+        {message && (
+          <p
+            style={{
+              ...styles.message,
+              color: messageType === "success" ? "green" : "red",
+            }}
+          >
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -3,12 +3,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 export default function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const userEmail = location.state?.userEmail || "User";
+  const firstName = localStorage.getItem("userFirstName");
+  const lastName = localStorage.getItem("userLastName");
+  const displayName = firstName && lastName ? `${firstName} ${lastName}` : location.state?.userEmail || "User";
 
   return (
     <div style={styles.pageWrapper}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Welcome, {userEmail}!</h1>
+  <h1 style={styles.title}>Welcome, {displayName}!</h1>
         <p style={styles.text}>You’ve successfully logged in.</p>
 
         <div style={styles.options}>
@@ -23,6 +25,12 @@ export default function Dashboard() {
             onClick={() => navigate("/update-info")}
           >
             Update Info
+          </button>
+          <button
+            style={styles.button}
+            onClick={() => navigate("/profile")}
+          >
+            Profile
           </button>
         </div>
       </div>
