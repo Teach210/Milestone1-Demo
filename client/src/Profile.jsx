@@ -63,7 +63,17 @@ export default function Profile() {
         )}
 
         <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
-          <button style={styles.button} onClick={() => navigate("/dashboard")}>
+          <button
+            style={styles.button}
+            onClick={() => {
+              // prefer server-fetched user role, fallback to localStorage flag
+              const localFlag = localStorage.getItem('isAdmin');
+              const fromUser = user && (user.is_admin === 1 || user.is_admin === '1' || user.is_admin === true);
+              const isAdmin = !!fromUser || localFlag === '1';
+              if (isAdmin) navigate('/admin');
+              else navigate('/dashboard');
+            }}
+          >
             Back to Dashboard
           </button>
           <button

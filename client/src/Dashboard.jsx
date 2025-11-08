@@ -30,7 +30,7 @@ export default function Dashboard() {
             style={styles.button}
             onClick={() => navigate("/profile")}
           >
-            Profile
+            View Profile
           </button>
         </div>
       </div>

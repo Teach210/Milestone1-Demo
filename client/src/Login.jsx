@@ -23,13 +23,18 @@ const handleLogin = async () => {
 
     const data = await response.json();
 
-    if (response.ok && data.status === "success") {
+      if (response.ok && data.status === "success") {
       // ✅ Login successful (no 2FA required): persist id and email and navigate to appropriate dashboard
       localStorage.setItem("userId", String(data.result.u_id));
       localStorage.setItem("userEmail", data.result.u_email);
       localStorage.setItem("userFirstName", data.result.u_firstname || "");
       localStorage.setItem("userLastName", data.result.u_lastname || "");
-      if (data.result.is_admin) {
+  // persist admin flag for client-side routing (store as '1' or '0')
+  const isAdminFlag = !!(data.result && (data.result.is_admin === 1 || data.result.is_admin === '1' || data.result.is_admin === true));
+  localStorage.setItem('isAdmin', isAdminFlag ? '1' : '0');
+      // coerce is_admin to a boolean (handles 0/1, '0'/'1', true/false)
+      const isAdmin = !!(data.result && (data.result.is_admin === 1 || data.result.is_admin === '1' || data.result.is_admin === true));
+      if (isAdmin) {
         navigate("/admin", { state: { userEmail: data.result.u_email } });
       } else {
         navigate("/dashboard", { state: { userEmail: data.result.u_email } });
