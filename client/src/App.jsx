@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import Login from "./Login.jsx";
 import Dashboard from "./Dashboard.jsx";
 import ChangePassword from "./ChangePassword.jsx";
-import ResetPassword from "./ResetPassword.jsx"; // 👈 import the new component
+import ResetPassword from "./ResetPassword.jsx"; //  import the new component
 import UpdateInfo from "./UpdateInfo.jsx"; 
 import ForgotPassword from "./ForgotPassword.jsx";
 import Register from "./Register.jsx";
@@ -17,7 +17,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/change-password" element={<ChangePassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} /> {/* 👈 new route */}
+      <Route path="/reset-password" element={<ResetPassword />} /> {/* new route */}
   <Route path="/forgot-password" element={<ForgotPassword />} />
   <Route path="/register" element={<Register />} />
   <Route path="/verify-code" element={<VerifyCode />} />
