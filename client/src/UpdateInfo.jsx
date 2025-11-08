@@ -7,6 +7,12 @@ export default function UpdateInfo() {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
+  const handleReturn = () => {
+    const localFlag = localStorage.getItem("isAdmin");
+    const isAdmin = localFlag === "1" || localFlag === "true";
+    navigate(isAdmin ? "/admin" : "/dashboard");
+  };
+
   const handleUpdate = async () => {
     if (!firstName || !lastName) {
       setMessage("Please fill out all fields.");
@@ -69,6 +75,12 @@ export default function UpdateInfo() {
           Update Info
         </button>
 
+        <div style={{ marginTop: 12 }}>
+          <button onClick={handleReturn} style={styles.secondaryButton}>
+            Return to Dashboard
+          </button>
+        </div>
+
         {message && <p style={styles.message}>{message}</p>}
       </div>
     </div>
@@ -116,6 +128,17 @@ const styles = {
     fontSize: "16px",
     fontWeight: "500",
     cursor: "pointer",
+  },
+  secondaryButton: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "6px",
+    border: "1px solid #1976d2",
+    backgroundColor: "#fff",
+    color: "#1976d2",
+    fontSize: "16px",
+    cursor: "pointer",
+    marginTop: "12px",
   },
   message: {
     marginTop: "15px",

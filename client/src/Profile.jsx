@@ -62,22 +62,22 @@ export default function Profile() {
           )
         )}
 
-        <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
           <button
-            style={styles.button}
+            style={styles.secondaryButton}
             onClick={() => {
               // prefer server-fetched user role, fallback to localStorage flag
               const localFlag = localStorage.getItem('isAdmin');
               const fromUser = user && (user.is_admin === 1 || user.is_admin === '1' || user.is_admin === true);
-              const isAdmin = !!fromUser || localFlag === '1';
+              const isAdmin = !!fromUser || localFlag === '1' || localFlag === 'true';
               if (isAdmin) navigate('/admin');
               else navigate('/dashboard');
             }}
           >
-            Back to Dashboard
+            Return to Dashboard
           </button>
           <button
-            style={{ ...styles.button, backgroundColor: '#e53935' }}
+            style={{ ...styles.button, backgroundColor: '#e53935', width: '100%' }}
             onClick={() => {
               // remove user session data and navigate to login
               localStorage.removeItem('userId');
@@ -86,6 +86,7 @@ export default function Profile() {
               localStorage.removeItem('userLastName');
               localStorage.removeItem('pendingUserId');
               localStorage.removeItem('pendingUserEmail');
+              localStorage.removeItem('isAdmin');
               navigate('/login');
             }}
           >
@@ -150,9 +151,19 @@ const styles = {
     backgroundColor: "#1976d2",
     color: "#fff",
     cursor: "pointer",
+    width: '100%'
   },
   message: {
     marginTop: "12px",
     fontSize: "14px",
+  },
+  secondaryButton: {
+    padding: "10px 16px",
+    borderRadius: "6px",
+    border: "1px solid #1976d2",
+    backgroundColor: "#fff",
+    color: "#1976d2",
+    cursor: "pointer",
+    width: '100%'
   },
 };

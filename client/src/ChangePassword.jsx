@@ -8,6 +8,12 @@ export default function ChangePassword() {
   const [messageType, setMessageType] = useState("");
   const navigate = useNavigate();
 
+  const handleReturn = () => {
+    const localFlag = localStorage.getItem("isAdmin");
+    const isAdmin = localFlag === "1" || localFlag === "true" || localFlag === "true";
+    navigate(isAdmin ? "/admin" : "/dashboard");
+  };
+
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword) {
       setMessage("Please fill out both fields.");
@@ -80,6 +86,12 @@ export default function ChangePassword() {
           Update Password
         </button>
 
+        <div style={{ marginTop: 12 }}>
+          <button onClick={handleReturn} style={styles.secondaryButton}>
+            Return to Dashboard
+          </button>
+        </div>
+
         {message && (
           <p
             style={{
@@ -140,5 +152,15 @@ const styles = {
     marginTop: "15px",
     color: "red",
     fontSize: "14px",
+  },
+  secondaryButton: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "6px",
+    border: "1px solid #1976d2",
+    backgroundColor: "#fff",
+    color: "#1976d2",
+    fontSize: "16px",
+    cursor: "pointer",
   },
 };

@@ -4,15 +4,8 @@ import { hashPassword, comparePassword } from "../utils/helper.js";
 import { sendEmail } from "../utils/sendmail.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// NOTE: email sending is handled by ../utils/sendmail.js
+// transporter removed to centralize email logic in the sendmail helper
 
 const user = Router();
 
@@ -147,7 +140,9 @@ user.post("/login", async (req, res) => {
       const subject = "Your login verification code";
       const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
       // Development: also log the code to the server console so devs can see it when email is not available
-      console.log(`2FA code for ${user.u_email} (id ${user.u_id}): ${code}`);
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`2FA code for ${user.u_email} (id ${user.u_id}): ${code}`);
+      }
       try {
         await sendEmail(user.u_email, subject, htmlBody);
       } catch (emailErr) {
@@ -200,7 +195,9 @@ user.post("/resend-2fa", (req, res) => {
     twoFactorStore.set(user.u_id, { code, expiresAt });
     const subject = "Your login verification code (resend)";
     const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
-    console.log(`2FA code (resend) for ${user.u_email} (id ${user.u_id}): ${code}`);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`2FA code (resend) for ${user.u_email} (id ${user.u_id}): ${code}`);
+    }
     try {
       await sendEmail(user.u_email, subject, htmlBody);
       return res.json({ status: "ok", message: "2FA code resent" });
