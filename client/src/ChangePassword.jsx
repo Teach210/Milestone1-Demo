@@ -90,6 +90,17 @@ export default function ChangePassword() {
             {message}
           </p>
         )}
+        <div style={{ marginTop: 12 }}>
+          <button
+            style={styles.secondaryButton}
+            onClick={() => {
+              const isAdmin = localStorage.getItem('isAdmin') === '1';
+              navigate(isAdmin ? '/admin' : '/dashboard');
+            }}
+          >
+            Return to Dashboard
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -140,5 +151,15 @@ const styles = {
     marginTop: "15px",
     color: "red",
     fontSize: "14px",
+  },
+  secondaryButton: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "6px",
+    border: "1px solid #1976d2",
+    backgroundColor: "#fff",
+    color: "#1976d2",
+    fontSize: "14px",
+    cursor: "pointer",
   },
 };

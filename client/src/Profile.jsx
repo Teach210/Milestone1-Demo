@@ -62,9 +62,9 @@ export default function Profile() {
           )
         )}
 
-        <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
-            style={styles.button}
+            style={styles.secondaryButton}
             onClick={() => {
               // prefer server-fetched user role, fallback to localStorage flag
               const localFlag = localStorage.getItem('isAdmin');
@@ -74,10 +74,11 @@ export default function Profile() {
               else navigate('/dashboard');
             }}
           >
-            Back to Dashboard
+            Return to Dashboard
           </button>
+
           <button
-            style={{ ...styles.button, backgroundColor: '#e53935' }}
+            style={styles.logoutButton}
             onClick={() => {
               // remove user session data and navigate to login
               localStorage.removeItem('userId');
@@ -86,6 +87,7 @@ export default function Profile() {
               localStorage.removeItem('userLastName');
               localStorage.removeItem('pendingUserId');
               localStorage.removeItem('pendingUserEmail');
+              localStorage.removeItem('isAdmin');
               navigate('/login');
             }}
           >
@@ -154,5 +156,21 @@ const styles = {
   message: {
     marginTop: "12px",
     fontSize: "14px",
+  },
+  secondaryButton: {
+    padding: "10px 16px",
+    borderRadius: "6px",
+    border: "1px solid #1976d2",
+    backgroundColor: "#fff",
+    color: "#1976d2",
+    cursor: "pointer",
+  },
+  logoutButton: {
+    padding: "10px 16px",
+    borderRadius: "6px",
+    border: "none",
+    backgroundColor: "#e53935",
+    color: "#fff",
+    cursor: "pointer",
   },
 };
