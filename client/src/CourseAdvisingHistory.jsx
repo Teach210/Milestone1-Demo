@@ -11,7 +11,8 @@ export default function CourseAdvisingHistory() {
       const userId = localStorage.getItem("userId");
       if (!userId) return navigate('/login');
       try {
-        const res = await fetch(`http://localhost:4040/advising/history/${userId}`);
+        const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+        const res = await fetch(`${apiBase}/advising/history/${userId}`);
         const data = await res.json();
         setRecords(data || []);
       } catch (err) {

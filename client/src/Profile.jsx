@@ -18,7 +18,8 @@ export default function Profile() {
       }
 
       try {
-        const res = await fetch(`http://localhost:4040/user/profile/${userId}`);
+        const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+        const res = await fetch(`${apiBase}/user/profile/${userId}`);
         const data = await res.json();
         console.log("Profile fetch response:", data);
         if (res.ok) {

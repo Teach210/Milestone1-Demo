@@ -22,7 +22,8 @@ export default function CourseAdvising() {
     const fetchIfEditing = async () => {
       if (!id || id === 'new') return;
       try {
-        const res = await fetch(`http://localhost:4040/advising/${id}`);
+        const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+        const res = await fetch(`${apiBase}/advising/${id}`);
         const data = await res.json();
         setLastTerm(data.last_term || '');
         setLastGPA(data.last_gpa ?? '');
@@ -42,7 +43,8 @@ export default function CourseAdvising() {
     const userId = localStorage.getItem('userId');
     if (!userId) return [];
     try {
-      const res = await fetch(`http://localhost:4040/advising/history/${userId}`);
+      const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+      const res = await fetch(`${apiBase}/advising/history/${userId}`);
       const data = await res.json();
       // find entries where last_term equals term and pull their course names
       const sameTerm = (data || []).filter(e => e.last_term === term || e.current_term === term);
@@ -92,8 +94,9 @@ export default function CourseAdvising() {
     };
 
     try {
+      const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
       if (!id || id === 'new') {
-        const res = await fetch('http://localhost:4040/advising', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await fetch(`${apiBase}/advising`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (res.ok) {
           navigate('/advising');
         } else {
@@ -101,7 +104,7 @@ export default function CourseAdvising() {
           alert(d.message || 'Failed to create advising entry');
         }
       } else {
-        const res = await fetch(`http://localhost:4040/advising/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await fetch(`${apiBase}/advising/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (res.ok) {
           navigate('/advising');
         } else {

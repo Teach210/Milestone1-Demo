@@ -20,6 +20,7 @@ export default function UpdateInfo() {
     }
 
     try {
+      const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
       const userId = localStorage.getItem("userId");
       if (!userId) {
         setMessage("User not logged in.");
@@ -29,7 +30,7 @@ export default function UpdateInfo() {
 
       // The backend expects PUT /user/:id and fields u_firstname, u_lastname, u_email
       const userEmail = localStorage.getItem("userEmail") || "";
-      const res = await fetch(`http://localhost:4040/user/${userId}`, {
+  const res = await fetch(`${apiBase}/user/${userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ u_firstname: firstName, u_lastname: lastName, u_email: userEmail }),
