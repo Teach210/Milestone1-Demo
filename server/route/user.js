@@ -117,47 +117,57 @@ user.get("/verify", (req, res) => {
 user.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
-  connection.execute(
-    "SELECT * FROM user_info WHERE u_email = ?",
-    [email],
-    async (err, result) => {
-      if (err) return res.status(500).json({ message: err.message });
-      if (result.length === 0)
-        return res.status(401).json({ message: "Invalid email or password" });
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required" });
+  }
 
-      const user = result[0];
+  try {
+    // Use the promise API to keep a single async control flow and avoid callback double-send issues
+    const [rows] = await connection.promise().execute(
+      "SELECT * FROM user_info WHERE u_email = ?",
+      [email]
+    );
 
-      if (!user.is_verified)
-        return res
-          .status(403)
-          .json({ message: "Please verify your email first" });
-
-      const isMatch = await bcrypt.compare(password, user.u_password);
-      if (!isMatch)
-        return res.status(401).json({ message: "Invalid email or password" });
-
-      // Generate and send 2FA code via email instead of completing login immediately
-      const code = generate2FACode();
-      const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-      twoFactorStore.set(user.u_id, { code, expiresAt });
-
-      const subject = "Your login verification code";
-      const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
-      // Development: also log the code to the server console so devs can see it when email is not available
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`2FA code for ${user.u_email} (id ${user.u_id}): ${code}`);
-      }
-      try {
-        await sendEmail(user.u_email, subject, htmlBody);
-      } catch (emailErr) {
-        console.error("2FA EMAIL ERROR:", emailErr);
-        // don't reveal email error details to client
-      }
-
-      // Tell client that 2FA is required and return the user id so client can verify
-      return res.status(200).json({ status: "2fa_required", message: "2FA code sent", userId: user.u_id, email: user.u_email });
+    if (!rows || rows.length === 0) {
+      return res.status(401).json({ message: "Invalid email or password" });
     }
-  );
+
+    const user = rows[0];
+
+    if (!user.is_verified) {
+      return res.status(403).json({ message: "Please verify your email first" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.u_password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Generate and send 2FA code via email instead of completing login immediately
+    const code = generate2FACode();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+    twoFactorStore.set(user.u_id, { code, expiresAt });
+
+    const subject = "Your login verification code";
+    const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`2FA code for ${user.u_email} (id ${user.u_id}): ${code}`);
+    }
+
+    try {
+      await sendEmail(user.u_email, subject, htmlBody);
+    } catch (emailErr) {
+      console.error("2FA EMAIL ERROR:", emailErr);
+      // continue - we still want to require 2FA even if email fails; client can request resend
+    }
+
+    return res.status(200).json({ status: "2fa_required", message: "2FA code sent", userId: user.u_id, email: user.u_email });
+  } catch (err) {
+    console.error("/user/login error:", err);
+    if (!res.headersSent) {
+      return res.status(500).json({ message: err.message || "Internal server error" });
+    }
+  }
 });
 
 // Verify 2FA code
