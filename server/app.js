@@ -7,14 +7,16 @@ import { connection } from "./database/connection.js";
 import { hashPassword } from "./utils/helper.js";
 
 const app = express();
-const port = 4040;
+// Use env-configured port and frontend URL so deployments can control CORS and port
+const port = process.env.PORT || 4040;
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 // Middleware
 app.use(bodyParser.json());
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend dev server
+    origin: FRONTEND_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
@@ -38,6 +40,7 @@ app.all("/test", (req, res) => {
 // Server start
 app.listen(port, () => {
   console.log(`Server is listening at port ${port}`);
+  console.log(`CORS origin set to: ${FRONTEND_URL}`);
 });
 
 // Ensure a single admin user exists on startup
