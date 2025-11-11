@@ -48,15 +48,22 @@ user.post("/register", (req, res) => {
       async (error, result) => {
         if (error) return res.status(500).json({ message: error.message });
 
-  // Send verification email (use BACKEND_URL so deployed backend links are correct)
-  const verificationLink = `${BACKEND_URL.replace(/\/$/, "")}/user/verify?token=${verificationToken}`;
+        // Send verification email (use BACKEND_URL so deployed backend links are correct)
+        const verificationLink = `${BACKEND_URL.replace(/\/$/, "")}/user/verify?token=${verificationToken}`;
         const subject = "Verify your email";
         const htmlBody = `<p>Hi ${u_firstname},</p>
           <p>Click the link below to verify your account:</p>
           <a href="${verificationLink}">Verify Email</a>`;
-        await sendEmail(u_email, subject, htmlBody);
 
-        res.status(201).json({
+        try {
+          await sendEmail(u_email, subject, htmlBody);
+        } catch (emailErr) {
+          // Log the error but continue: registration should succeed even if email fails
+          console.error("Failed to send verification email:", emailErr && emailErr.message ? emailErr.message : emailErr);
+        }
+
+        // Always respond to the client so the request does not hang when email fails
+        return res.status(201).json({
           status: "success",
           message: "Registration successful! Please verify your email.",
         });
@@ -288,15 +295,20 @@ user.post("/forgot-password", async (req, res) => {
     connection.execute(updateQuery, [resetToken, u_email], async (err, result) => {
       if (err) return res.status(500).json({ message: err.message });
 
-  // Send email (frontend reset link)
-  const resetLink = `${FRONTEND_URL.replace(/\/$/, "")}/reset-password?token=${resetToken}`;
+      // Send email (frontend reset link)
+      const resetLink = `${FRONTEND_URL.replace(/\/$/, "")}/reset-password?token=${resetToken}`;
       const subject = "Password Reset Request";
       const htmlBody = `<p>Click the link below to reset your password:</p>
         <a href="${resetLink}">Reset Password</a>`;
 
-      await sendEmail(u_email, subject, htmlBody);
+      try {
+        await sendEmail(u_email, subject, htmlBody);
+      } catch (emailErr) {
+        console.error("Failed to send reset email:", emailErr && emailErr.message ? emailErr.message : emailErr);
+        // continue: token was stored in DB so client can proceed with reset flow
+      }
 
-      res.json({ status: "success", message: "Password reset email sent" });
+      return res.json({ status: "success", message: "Password reset email sent" });
     });
   });
 });
