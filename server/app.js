@@ -2,6 +2,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import express from "express";
 import user from "./route/user.js";
+import advising from "./route/advising.js";
 import { connection } from "./database/connection.js";
 import { hashPassword } from "./utils/helper.js";
 
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
 
 // API routes
 app.use("/user", user);
+app.use("/advising", advising);
 
 // Test route
 app.all("/test", (req, res) => {

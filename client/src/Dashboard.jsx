@@ -32,6 +32,18 @@ export default function Dashboard() {
           >
             View Profile
           </button>
+          <button
+            style={styles.button}
+            onClick={() => navigate("/advising/new")}
+          >
+            New Advising Entry
+          </button>
+          <button
+            style={styles.button}
+            onClick={() => navigate("/advising")}
+          >
+            Advising History
+          </button>
         </div>
       </div>
     </div>
@@ -68,16 +80,20 @@ const styles = {
   },
   options: {
     display: "flex",
-    justifyContent: "center",
-    gap: "20px",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: "12px",
+    marginTop: "10px",
   },
   button: {
     backgroundColor: "#1976d2",
     color: "#fff",
     border: "none",
-    padding: "10px 20px",
+    padding: "12px 16px",
     borderRadius: "6px",
     cursor: "pointer",
     fontSize: "16px",
+    width: "100%",
+    boxSizing: "border-box",
   },
 };

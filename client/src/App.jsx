@@ -9,6 +9,8 @@ import Register from "./Register.jsx";
 import Profile from "./Profile.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 import VerifyCode from "./VerifyCode.jsx";
+import CourseAdvisingHistory from "./CourseAdvisingHistory.jsx";
+import CourseAdvising from "./CourseAdvising.jsx";
 
 export default function App() {
   return (
@@ -24,6 +26,9 @@ export default function App() {
   <Route path="/profile" element={<Profile />} />
   <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/update-info" element={<UpdateInfo />} />
+      <Route path="/advising" element={<CourseAdvisingHistory />} />
+      <Route path="/advising/new" element={<CourseAdvising />} />
+      <Route path="/advising/:id" element={<CourseAdvising />} />
     </Routes>
   );
 }
