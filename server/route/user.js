@@ -9,6 +9,10 @@ import crypto from "crypto";
 
 const user = Router();
 
+// Frontend and Backend base URLs (set in env for production)
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 4040}`;
+
 // In-memory two-factor store: userId -> { code, expiresAt }
 const twoFactorStore = new Map();
 
@@ -44,8 +48,8 @@ user.post("/register", (req, res) => {
       async (error, result) => {
         if (error) return res.status(500).json({ message: error.message });
 
-        // Send verification email
-        const verificationLink = `http://localhost:4040/user/verify?token=${verificationToken}`;
+  // Send verification email: point to the backend verify endpoint so server performs verification
+  const verificationLink = `${BACKEND_URL.replace(/\/$/, "")}/user/verify?token=${verificationToken}`;
         const subject = "Verify your email";
         const htmlBody = `<p>Hi ${u_firstname},</p>
           <p>Click the link below to verify your account:</p>
@@ -93,14 +97,14 @@ user.get("/verify", (req, res) => {
         `
         );
 
-        // Redirect to login page
-        return res.redirect("http://localhost:5173/login");
+  // Redirect to login page (frontend will show login UI)
+  return res.redirect(`${FRONTEND_URL.replace(/\/$/, "")}/login`);
 
       } catch (emailErr) {
         console.error("EMAIL SEND ERROR:", emailErr);
         return res.send(`
           <h2>Your account is verified, but we couldn't send a confirmation email.</h2>
-          <p>You can still <a href="http://localhost:5173/login">log in</a> now.</p>
+          <p>You can still <a href="${FRONTEND_URL.replace(/\/$/, "")}/login">log in</a> now.</p>
         `);
       }
     });
@@ -285,7 +289,7 @@ user.post("/forgot-password", async (req, res) => {
       if (err) return res.status(500).json({ message: err.message });
 
       // Send email
-      const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+      const resetLink = `${FRONTEND_URL.replace(/\/$/, "")}/reset-password?token=${resetToken}`;
       const subject = "Password Reset Request";
       const htmlBody = `<p>Click the link below to reset your password:</p>
         <a href="${resetLink}">Reset Password</a>`;
