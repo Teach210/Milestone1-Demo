@@ -1,0 +1,167 @@
+import { Router } from "express";
+import { connection } from "../database/connection.js";
+
+const advising = Router();
+
+// Ensure tables exist
+const createEntriesTable = `
+  CREATE TABLE IF NOT EXISTS advising_entries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_term VARCHAR(100),
+    last_gpa DECIMAL(4,2),
+    current_term VARCHAR(100),
+    status ENUM('Pending','Approved','Rejected') DEFAULT 'Pending'
+  ) ENGINE=InnoDB;
+`;
+
+const createCoursesTable = `
+  CREATE TABLE IF NOT EXISTS advising_courses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    advising_id INT NOT NULL,
+    course_level VARCHAR(100),
+    course_name VARCHAR(255),
+    FOREIGN KEY (advising_id) REFERENCES advising_entries(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB;
+`;
+
+connection.execute(createEntriesTable, (err) => {
+  if (err) console.error("Error creating advising_entries table:", err.message);
+  else console.log("advising_entries table ensured");
+});
+connection.execute(createCoursesTable, (err) => {
+  if (err) console.error("Error creating advising_courses table:", err.message);
+  else console.log("advising_courses table ensured");
+});
+
+// Create a new advising entry
+advising.post("/", (req, res) => {
+  const { userId, last_term, last_gpa, current_term, courses } = req.body;
+  if (!userId) return res.status(400).json({ message: "userId is required" });
+
+  const insert = `INSERT INTO advising_entries (user_id, last_term, last_gpa, current_term, status) VALUES (?, ?, ?, ?, 'Pending')`;
+  connection.execute(insert, [userId, last_term || null, last_gpa || null, current_term || null], (err, result) => {
+    if (err) {
+      console.error('Error inserting advising entry:', err.message);
+      return res.status(500).json({ message: err.message });
+    }
+    const advisingId = result.insertId;
+    console.log(`Created advising entry ${advisingId} for user ${userId}`);
+
+    // insert courses
+    if (Array.isArray(courses) && courses.length > 0) {
+      const values = courses.map(c => [advisingId, c.level, c.course_name]);
+      const q = `INSERT INTO advising_courses (advising_id, course_level, course_name) VALUES ?`;
+      connection.query(q, [values], (err2) => {
+        if (err2) {
+          console.error('Error inserting advising courses:', err2.message);
+          return res.status(500).json({ message: err2.message });
+        }
+        console.log(`Inserted ${values.length} courses for advising ${advisingId}`);
+        return res.status(201).json({ status: 'success', advisingId });
+      });
+    } else {
+      return res.status(201).json({ status: 'success', advisingId });
+    }
+  });
+});
+
+// Debug endpoint: list advising tables and counts
+advising.get('/debug/tables', (req, res) => {
+  connection.query("SHOW TABLES LIKE 'advising_%'", (err, tables) => {
+    if (err) return res.status(500).json({ message: err.message });
+    const names = (tables || []).map(r => Object.values(r)[0]);
+    // fetch counts for each table
+    const tasks = names.map(n => new Promise((resolve) => {
+      connection.query(`SELECT COUNT(*) as cnt FROM ${n}`, (err2, rows) => {
+        if (err2) return resolve({ table: n, error: err2.message });
+        resolve({ table: n, count: rows[0].cnt });
+      });
+    }));
+    Promise.all(tasks).then(results => res.json(results)).catch(e => res.status(500).json({ message: e.message }));
+  });
+});
+
+// Debug endpoint: sample rows from advising_entries (show user_id and created_at)
+advising.get('/debug/rows', (req, res) => {
+  connection.query('SELECT id, user_id, created_at, current_term, last_term, status FROM advising_entries ORDER BY created_at DESC LIMIT 50', (err, rows) => {
+    if (err) return res.status(500).json({ message: err.message });
+    res.json(rows || []);
+  });
+});
+
+// Get advising history for a user
+advising.get('/history/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const q = 'SELECT * FROM advising_entries WHERE user_id = ? ORDER BY created_at DESC';
+  connection.execute(q, [userId], (err, rows) => {
+    if (err) return res.status(500).json({ message: err.message });
+    if (!rows || rows.length === 0) return res.json([]);
+
+    // fetch courses for each entry
+    const ids = rows.map(r => r.id);
+    const q2 = `SELECT * FROM advising_courses WHERE advising_id IN (${ids.map(()=>'?').join(',')})`;
+    connection.execute(q2, ids, (err2, courses) => {
+      if (err2) return res.status(500).json({ message: err2.message });
+      const map = {};
+      courses.forEach(c => {
+        if (!map[c.advising_id]) map[c.advising_id] = [];
+        map[c.advising_id].push(c);
+      });
+      const result = rows.map(r => ({ ...r, courses: map[r.id] || [] }));
+      res.json(result);
+    });
+  });
+});
+
+// Get single advising entry
+advising.get('/:id', (req, res) => {
+  const id = req.params.id;
+  const q = 'SELECT * FROM advising_entries WHERE id = ?';
+  connection.execute(q, [id], (err, rows) => {
+    if (err) return res.status(500).json({ message: err.message });
+    if (!rows || rows.length === 0) return res.status(404).json({ message: 'Not found' });
+    const entry = rows[0];
+    connection.execute('SELECT * FROM advising_courses WHERE advising_id = ?', [id], (err2, courses) => {
+      if (err2) return res.status(500).json({ message: err2.message });
+      entry.courses = courses || [];
+      res.json(entry);
+    });
+  });
+});
+
+// Update advising entry (only if Pending)
+advising.put('/:id', (req, res) => {
+  const id = req.params.id;
+  const { last_term, last_gpa, current_term, courses } = req.body;
+
+  connection.execute('SELECT status FROM advising_entries WHERE id = ?', [id], (err, rows) => {
+    if (err) return res.status(500).json({ message: err.message });
+    if (!rows || rows.length === 0) return res.status(404).json({ message: 'Not found' });
+    const status = rows[0].status;
+    if (status !== 'Pending') return res.status(403).json({ message: 'Only pending entries can be edited' });
+
+    const update = 'UPDATE advising_entries SET last_term = ?, last_gpa = ?, current_term = ? WHERE id = ?';
+    connection.execute(update, [last_term || null, last_gpa || null, current_term || null, id], (err2) => {
+      if (err2) return res.status(500).json({ message: err2.message });
+
+      // delete existing courses and insert new ones
+      connection.execute('DELETE FROM advising_courses WHERE advising_id = ?', [id], (err3) => {
+        if (err3) return res.status(500).json({ message: err3.message });
+        if (Array.isArray(courses) && courses.length > 0) {
+          const values = courses.map(c => [id, c.level, c.course_name]);
+          const q = `INSERT INTO advising_courses (advising_id, course_level, course_name) VALUES ?`;
+          connection.query(q, [values], (err4) => {
+            if (err4) return res.status(500).json({ message: err4.message });
+            return res.json({ status: 'success' });
+          });
+        } else {
+          return res.json({ status: 'success' });
+        }
+      });
+    });
+  });
+});
+
+export default advising;
