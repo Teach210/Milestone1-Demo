@@ -12,6 +12,10 @@ const user = Router();
 // In-memory two-factor store: userId -> { code, expiresAt }
 const twoFactorStore = new Map();
 
+// Configurable URLs for production
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4040";
+
 function generate2FACode() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
 }
@@ -44,15 +48,21 @@ user.post("/register", (req, res) => {
       async (error, result) => {
         if (error) return res.status(500).json({ message: error.message });
 
-        // Send verification email
-        const verificationLink = `http://localhost:4040/user/verify?token=${verificationToken}`;
+        // Send verification email (don't let email failures prevent registration)
+        const verificationLink = `${BACKEND_URL}/user/verify?token=${verificationToken}`;
         const subject = "Verify your email";
         const htmlBody = `<p>Hi ${u_firstname},</p>
           <p>Click the link below to verify your account:</p>
           <a href="${verificationLink}">Verify Email</a>`;
-        await sendEmail(u_email, subject, htmlBody);
 
-        res.status(201).json({
+        try {
+          await sendEmail(u_email, subject, htmlBody);
+        } catch (emailErr) {
+          console.error('Registration email error:', emailErr && emailErr.message ? emailErr.message : emailErr);
+          // continue — registration succeeded in DB, but email failed to send
+        }
+
+        return res.status(201).json({
           status: "success",
           message: "Registration successful! Please verify your email.",
         });
@@ -81,7 +91,7 @@ user.get("/verify", (req, res) => {
     connection.execute(updateQuery, [token], async (err) => {
       if (err) return res.status(500).send("Database error");
 
-      // 🎉 Send verification success email
+        // 🎉 Send verification success email
       try {
         await sendEmail(
           userEmail,
@@ -94,13 +104,13 @@ user.get("/verify", (req, res) => {
         );
 
         // Redirect to login page
-        return res.redirect("http://localhost:5173/login");
+        return res.redirect(`${FRONTEND_URL}/login`);
 
       } catch (emailErr) {
         console.error("EMAIL SEND ERROR:", emailErr);
         return res.send(`
           <h2>Your account is verified, but we couldn't send a confirmation email.</h2>
-          <p>You can still <a href="http://localhost:5173/login">log in</a> now.</p>
+          <p>You can still <a href="${FRONTEND_URL}/login">log in</a> now.</p>
         `);
       }
     });
@@ -284,13 +294,18 @@ user.post("/forgot-password", async (req, res) => {
     connection.execute(updateQuery, [resetToken, u_email], async (err, result) => {
       if (err) return res.status(500).json({ message: err.message });
 
-      // Send email
-      const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+      // Send email (don't let email failure prevent response)
+      const resetLink = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
       const subject = "Password Reset Request";
       const htmlBody = `<p>Click the link below to reset your password:</p>
         <a href="${resetLink}">Reset Password</a>`;
 
-      await sendEmail(u_email, subject, htmlBody);
+      try {
+        await sendEmail(u_email, subject, htmlBody);
+      } catch (emailErr) {
+        console.error('Password reset email error:', emailErr && emailErr.message ? emailErr.message : emailErr);
+        // continue — still return success because token is stored in DB
+      }
 
       res.json({ status: "success", message: "Password reset email sent" });
     });
