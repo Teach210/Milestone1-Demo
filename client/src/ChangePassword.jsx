@@ -28,6 +28,7 @@ export default function ChangePassword() {
     }
 
     try {
+      const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
       const userId = localStorage.getItem("userId");
       if (!userId) {
         setMessage("User not logged in.");
@@ -37,7 +38,7 @@ export default function ChangePassword() {
         return;
       }
 
-      const res = await fetch(`http://localhost:4040/user/change-password/${userId}`, {
+  const res = await fetch(`${apiBase}/user/change-password/${userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),

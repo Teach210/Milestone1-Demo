@@ -19,7 +19,8 @@ export default function VerifyCode() {
 
     setIsVerifying(true);
     try {
-      const res = await fetch("http://localhost:4040/user/verify-2fa", {
+      const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+      const res = await fetch(`${apiBase}/user/verify-2fa`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: pendingUserId, code }),
@@ -65,7 +66,8 @@ export default function VerifyCode() {
 
   const handleResend = async () => {
     try {
-      const res = await fetch("http://localhost:4040/user/resend-2fa", {
+      const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+      const res = await fetch(`${apiBase}/user/resend-2fa`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: pendingUserId }),

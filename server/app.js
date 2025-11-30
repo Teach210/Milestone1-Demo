@@ -7,7 +7,7 @@ import { connection } from "./database/connection.js";
 import { hashPassword } from "./utils/helper.js";
 
 const app = express();
-const port = 4040;
+const port = process.env.PORT || 4040;
 
 // Middleware
 app.use(bodyParser.json());

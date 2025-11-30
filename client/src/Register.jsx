@@ -22,7 +22,8 @@ export default function Register() {
     }
 
     try {
-      const res = await fetch("http://localhost:4040/user/register", {
+      const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+      const res = await fetch(`${apiBase}/user/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ u_firstname: firstName, u_lastname: lastName, u_email: email, u_password: password }),

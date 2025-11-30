@@ -13,7 +13,9 @@ const handleLogin = async () => {
   }
 
   try {
-    const response = await fetch("http://localhost:4040/user/login", {
+    // Use Vite env var for API base URL when running in production
+    const apiBase = (import.meta.env.VITE_API_KEY || "http://localhost:4040").replace(/\/$/, "");
+    const response = await fetch(`${apiBase}/user/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
