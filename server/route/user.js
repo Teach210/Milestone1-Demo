@@ -147,7 +147,8 @@ user.post("/login", async (req, res) => {
       const subject = "Your login verification code";
       const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
       // Development: also log the code to the server console so devs can see it when email is not available
-      if (process.env.NODE_ENV !== "production") {
+      // Always log for admin users even in production since admin email might not be real
+      if (process.env.NODE_ENV !== "production" || user.is_admin === 1) {
         console.log(`2FA code for ${user.u_email} (id ${user.u_id}): ${code}`);
       }
       try {
@@ -202,7 +203,8 @@ user.post("/resend-2fa", (req, res) => {
     twoFactorStore.set(user.u_id, { code, expiresAt });
     const subject = "Your login verification code (resend)";
     const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
-    if (process.env.NODE_ENV !== "production") {
+    // Always log for admin users even in production
+    if (process.env.NODE_ENV !== "production" || user.is_admin === 1) {
       console.log(`2FA code (resend) for ${user.u_email} (id ${user.u_id}): ${code}`);
     }
     try {
