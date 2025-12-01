@@ -1,0 +1,6 @@
+I am working on the backend of my application, which was previously hosted locally but is now being hosted on the cloud using Render (https://milestone2-demo.onrender.com
+). My goal is to update and test the existing API endpoints so they work properly with the new cloud server.
+
+To do this, I want to go through each API one at a time. This approach will help me understand the changes I'm making, since I often get lost when too many things are updated simultaneously. Right now, I’m focusing on getting all the API endpoints to work properly with the new server.
+
+When I call the endpoints through Postman, some are responding not responding at all, but two of the endpoints are responding. I need to identify and fix the issues with these non-responding APIs, ensuring that each endpoint works as expected.
