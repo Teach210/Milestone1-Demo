@@ -1,6 +1,43 @@
-I am working on the backend of my application, which was previously hosted locally but is now being hosted on the cloud using Render (https://milestone2-demo.onrender.com
-). My goal is to update and test the existing API endpoints so they work properly with the new cloud server.
+BACKEND DEPLOYMENT - COMPLETED
 
-To do this, I want to go through each API one at a time. This approach will help me understand the changes I'm making, since I often get lost when too many things are updated simultaneously. Right now, I’m focusing on getting all the API endpoints to work properly with the new server.
+Deployed URL: https://milestone2-demo.onrender.com
+Hosting: Render
+Database: MySQL (remote connection via env vars)
+Email Service: SendGrid REST API (switched from SMTP due to port blocking)
 
-When I call the endpoints through Postman, some are responding not responding at all, but two of the endpoints are responding. I need to identify and fix the issues with these non-responding APIs, ensuring that each endpoint works as expected.
+ENVIRONMENT VARIABLES SET ON RENDER:
+- BACKEND_URL=https://milestone2-demo.onrender.com
+- FRONTEND_URL=http://localhost:5173 (needs update after frontend deployment)
+- DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE (MySQL connection)
+- SMTP_EMAIL=siam.sadid@gmail.com
+- SMTP_PASSWORD=<SendGrid API key>
+- SENDGRID_API_KEY (optional, uses SMTP_PASSWORD if not set)
+
+KEY BACKEND CHANGES:
+1. Replaced all hardcoded localhost URLs with environment variables (BACKEND_URL, FRONTEND_URL)
+2. Switched from nodemailer SMTP to @sendgrid/mail REST API to avoid Render port blocking
+3. Added try-catch around email sending in registration so SMTP failures don't block responses
+4. CORS currently allows only http://localhost:5173 - must update after frontend deployment
+
+ALL ENDPOINTS TESTED & WORKING:
+User: /user/register, /user/login, /user/verify, /user/verify-2fa, /user/resend-2fa, 
+      /user/:id (GET/PUT/DELETE), /user/profile/:id, /user/forgot-password, 
+      /user/reset-password, /user/change-password/:id
+Advising: /advising (POST), /advising/history/:userId, /advising/:id (GET/PUT), 
+          /advising/debug/tables, /advising/debug/rows
+Health: /test
+
+FRONTEND REQUIREMENTS:
+1. Update all API calls from http://localhost:4040 to https://milestone2-demo.onrender.com
+2. After deploying frontend, update BACKEND_URL CORS and FRONTEND_URL env var on Render
+3. Ensure frontend handles 2FA flow (login returns userId, then verify-2fa with code from email)
+4. Email verification and password reset links now point to correct deployed URLs
+5. All email/password flows require SendGrid email delivery (users receive actual emails)
+
+NEXT STEPS:
+- Deploy frontend to Firebase Hosting
+- Update FRONTEND_URL env var on Render with deployed frontend URL
+- Update CORS in server/app.js to allow deployed frontend origin
+- Test frontend → backend integration end-to-end
+
+We have discovered that using 

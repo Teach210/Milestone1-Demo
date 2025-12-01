@@ -12,9 +12,22 @@ const port = 4040;
 // Middleware
 app.use(bodyParser.json());
 
+// Allow both local dev and deployed frontend
+const allowedOrigins = [
+  "http://localhost:5173", // local dev
+  process.env.FRONTEND_URL || "https://course-advising-4040.web.app" // deployed
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend dev server
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        return callback(new Error('Not allowed by CORS'), false);
+      }
+      return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
