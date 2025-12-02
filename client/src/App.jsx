@@ -8,6 +8,7 @@ import ForgotPassword from "./ForgotPassword.jsx";
 import Register from "./Register.jsx";
 import Profile from "./Profile.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
+import AdvisingReview from "./AdvisingReview.jsx";
 import VerifyCode from "./VerifyCode.jsx";
 import CourseAdvisingHistory from "./CourseAdvisingHistory.jsx";
 import CourseAdvising from "./CourseAdvising.jsx";
@@ -23,8 +24,9 @@ export default function App() {
   <Route path="/forgot-password" element={<ForgotPassword />} />
   <Route path="/register" element={<Register />} />
   <Route path="/verify-code" element={<VerifyCode />} />
-  <Route path="/profile" element={<Profile />} />
-  <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/review/:id" element={<AdvisingReview />} />
       <Route path="/update-info" element={<UpdateInfo />} />
       <Route path="/advising" element={<CourseAdvisingHistory />} />
       <Route path="/advising/new" element={<CourseAdvising />} />
