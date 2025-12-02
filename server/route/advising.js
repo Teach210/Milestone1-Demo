@@ -100,6 +100,114 @@ advising.post("/", (req, res) => {
   });
 });
 
+// Admin endpoint: Get all advising forms with student names
+advising.get('/admin/all', (req, res) => {
+  const query = `
+    SELECT 
+      ae.id,
+      ae.user_id,
+      ae.created_at,
+      ae.current_term,
+      ae.last_term,
+      ae.last_gpa,
+      ae.status,
+      ae.admin_message,
+      ae.admin_id,
+      ae.reviewed_at,
+      CONCAT(ui.u_firstname, ' ', ui.u_lastname) AS student_name,
+      ui.u_email AS student_email
+    FROM advising_entries ae
+    JOIN user_info ui ON ae.user_id = ui.u_id
+    ORDER BY ae.created_at DESC
+  `;
+  
+  connection.query(query, (err, entries) => {
+    if (err) {
+      console.error('Error fetching all advising entries:', err.message);
+      return res.status(500).json({ message: err.message });
+    }
+    
+    if (!entries || entries.length === 0) {
+      return res.json([]);
+    }
+    
+    // Fetch courses for all entries
+    const ids = entries.map(e => e.id);
+    const coursesQuery = `SELECT * FROM advising_courses WHERE advising_id IN (${ids.map(() => '?').join(',')})`;
+    
+    connection.execute(coursesQuery, ids, (err2, courses) => {
+      if (err2) {
+        console.error('Error fetching courses:', err2.message);
+        return res.status(500).json({ message: err2.message });
+      }
+      
+      // Map courses to entries
+      const coursesMap = {};
+      courses.forEach(c => {
+        if (!coursesMap[c.advising_id]) coursesMap[c.advising_id] = [];
+        coursesMap[c.advising_id].push(c);
+      });
+      
+      const result = entries.map(entry => ({
+        ...entry,
+        courses: coursesMap[entry.id] || []
+      }));
+      
+      res.json(result);
+    });
+  });
+});
+
+// Admin endpoint: Review advising form (approve/reject)
+advising.post('/:id/review', (req, res) => {
+  const advisingId = req.params.id;
+  const { status, admin_message, admin_id } = req.body;
+  
+  // Validate inputs
+  if (!status || !admin_message || !admin_id) {
+    return res.status(400).json({ message: 'status, admin_message, and admin_id are required' });
+  }
+  
+  if (status !== 'Approved' && status !== 'Rejected') {
+    return res.status(400).json({ message: 'status must be either "Approved" or "Rejected"' });
+  }
+  
+  if (!admin_message.trim()) {
+    return res.status(400).json({ message: 'admin_message cannot be empty' });
+  }
+  
+  // Update advising entry
+  const updateQuery = `
+    UPDATE advising_entries 
+    SET status = ?, admin_message = ?, admin_id = ?, reviewed_at = NOW()
+    WHERE id = ?
+  `;
+  
+  connection.execute(updateQuery, [status, admin_message, admin_id, advisingId], (err, result) => {
+    if (err) {
+      console.error('Error updating advising entry:', err.message);
+      return res.status(500).json({ message: err.message });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Advising entry not found' });
+    }
+    
+    // Fetch updated entry
+    connection.execute('SELECT * FROM advising_entries WHERE id = ?', [advisingId], (err2, rows) => {
+      if (err2) {
+        return res.status(500).json({ message: err2.message });
+      }
+      
+      res.json({ 
+        status: 'success', 
+        message: `Advising entry ${status.toLowerCase()}`,
+        entry: rows[0]
+      });
+    });
+  });
+});
+
 // Debug endpoint: list advising tables and counts
 advising.get('/debug/tables', (req, res) => {
   connection.query("SHOW TABLES LIKE 'advising_%'", (err, tables) => {
