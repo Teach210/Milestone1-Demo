@@ -76,6 +76,11 @@ export function validatePassword(password) {
  * @returns {Promise<object>} - { success: boolean, message: string }
  */
 export async function verifyRecaptcha(token) {
+    // Skip reCAPTCHA verification in test environment
+    if (process.env.NODE_ENV === 'test' || process.env.SKIP_RECAPTCHA === 'true') {
+        return { success: true, message: "reCAPTCHA skipped in test mode" };
+    }
+
     if (!token) {
         return { success: false, message: "reCAPTCHA token is required" };
     }
