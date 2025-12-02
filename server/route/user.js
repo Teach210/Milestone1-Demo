@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { connection } from "../database/connection.js";
-import { hashPassword, comparePassword } from "../utils/helper.js";
+import { hashPassword, comparePassword, validatePassword } from "../utils/helper.js";
 import { sendEmail } from "../utils/sendmail.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -22,6 +22,12 @@ user.post("/register", (req, res) => {
 
   if (!u_firstname || !u_lastname || !u_email || !u_password) {
     return res.status(400).json({ message: "All fields are required" });
+  }
+
+  // Validate password strength
+  const passwordValidation = validatePassword(u_password);
+  if (!passwordValidation.isValid) {
+    return res.status(400).json({ message: passwordValidation.message });
   }
 
   const queryCheck = "SELECT * FROM user_info WHERE u_email = ?";
@@ -315,6 +321,12 @@ user.post("/reset-password", (req, res) => {
   if (!token || !newPassword)
     return res.status(400).json({ message: "Token and new password are required" });
 
+  // Validate password strength
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
+    return res.status(400).json({ message: passwordValidation.message });
+  }
+
   const query = "SELECT * FROM user_info WHERE reset_token = ?";
   connection.execute(query, [token], (err, result) => {
     if (err) return res.status(500).json({ message: err.message });
@@ -339,6 +351,12 @@ user.post("/change-password/:id", (req, res) => {
 
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ message: "Both current and new passwords are required." });
+  }
+
+  // Validate new password strength
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
+    return res.status(400).json({ message: passwordValidation.message });
   }
 
   // Get the user from the database
