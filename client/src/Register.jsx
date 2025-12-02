@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PasswordRequirements, validatePassword } from "./utils/passwordValidation";
 
 export default function Register() {
   const [firstName, setFirstName] = useState("");
@@ -18,6 +19,13 @@ export default function Register() {
 
     if (password !== confirmPassword) {
       setMessage("Passwords do not match.");
+      return;
+    }
+
+    // Validate password strength
+    const { isValid } = validatePassword(password);
+    if (!isValid) {
+      setMessage("Password does not meet requirements.");
       return;
     }
 
@@ -79,6 +87,8 @@ export default function Register() {
           onChange={(e) => setPassword(e.target.value)}
           style={styles.input}
         />
+
+        {password && <PasswordRequirements password={password} />}
 
         <input
           type="password"

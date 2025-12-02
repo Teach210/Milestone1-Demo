@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { PasswordRequirements, validatePassword } from "./utils/passwordValidation";
 
 export default function ResetPassword() {
   const [newPassword, setNewPassword] = useState("");
@@ -15,6 +16,13 @@ export default function ResetPassword() {
 
     if (!newPassword.trim()) {
       setMessage("Please enter a new password.");
+      return;
+    }
+
+    // Validate password strength
+    const { isValid } = validatePassword(newPassword);
+    if (!isValid) {
+      setMessage("Password does not meet requirements.");
       return;
     }
 
@@ -50,6 +58,7 @@ export default function ResetPassword() {
           onChange={(e) => setNewPassword(e.target.value)}
           style={styles.input}
         />
+        {newPassword && <PasswordRequirements password={newPassword} />}
         <button onClick={handleResetPassword} style={styles.button}>
           Reset Password
         </button>

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { connection } from "../database/connection.js";
+import { sendEmail } from "../utils/sendmail.js";
 
 const advising = Router();
 
@@ -35,6 +36,39 @@ connection.execute(createCoursesTable, (err) => {
   else console.log("advising_courses table ensured");
 });
 
+// Add admin review columns if they don't exist (Milestone 3 Phase 2)
+const addAdminColumns = () => {
+  // Check if columns exist before adding
+  connection.query("SHOW COLUMNS FROM advising_entries LIKE 'admin_message'", (err, result) => {
+    if (!err && result.length === 0) {
+      connection.execute("ALTER TABLE advising_entries ADD COLUMN admin_message TEXT", (err2) => {
+        if (err2) console.error("Error adding admin_message:", err2.message);
+        else console.log("Added admin_message column");
+      });
+    }
+  });
+  
+  connection.query("SHOW COLUMNS FROM advising_entries LIKE 'admin_id'", (err, result) => {
+    if (!err && result.length === 0) {
+      connection.execute("ALTER TABLE advising_entries ADD COLUMN admin_id INT", (err2) => {
+        if (err2) console.error("Error adding admin_id:", err2.message);
+        else console.log("Added admin_id column");
+      });
+    }
+  });
+  
+  connection.query("SHOW COLUMNS FROM advising_entries LIKE 'reviewed_at'", (err, result) => {
+    if (!err && result.length === 0) {
+      connection.execute("ALTER TABLE advising_entries ADD COLUMN reviewed_at DATETIME", (err2) => {
+        if (err2) console.error("Error adding reviewed_at:", err2.message);
+        else console.log("Added reviewed_at column");
+      });
+    }
+  });
+};
+
+addAdminColumns();
+
 // Create a new advising entry
 advising.post("/", (req, res) => {
   const { userId, last_term, last_gpa, current_term, courses } = req.body;
@@ -64,6 +98,180 @@ advising.post("/", (req, res) => {
     } else {
       return res.status(201).json({ status: 'success', advisingId });
     }
+  });
+});
+
+// Admin endpoint: Get all advising forms with student names
+advising.get('/admin/all', (req, res) => {
+  const query = `
+    SELECT 
+      ae.id,
+      ae.user_id,
+      ae.created_at,
+      ae.current_term,
+      ae.last_term,
+      ae.last_gpa,
+      ae.status,
+      ae.admin_message,
+      ae.admin_id,
+      ae.reviewed_at,
+      CONCAT(ui.u_firstname, ' ', ui.u_lastname) AS student_name,
+      ui.u_email AS student_email
+    FROM advising_entries ae
+    JOIN user_info ui ON ae.user_id = ui.u_id
+    ORDER BY ae.created_at DESC
+    `;
+  
+  connection.query(query, (err, entries) => {
+    if (err) {
+      console.error('Error fetching all advising entries:', err.message);
+      return res.status(500).json({ message: err.message });
+    }
+    
+    if (!entries || entries.length === 0) {
+      return res.json([]);
+    }
+    
+    // Fetch courses for all entries
+    const ids = entries.map(e => e.id);
+    const coursesQuery = `SELECT * FROM advising_courses WHERE advising_id IN (${ids.map(() => '?').join(',')})`;
+    
+    connection.execute(coursesQuery, ids, (err2, courses) => {
+      if (err2) {
+        console.error('Error fetching courses:', err2.message);
+        return res.status(500).json({ message: err2.message });
+      }
+      
+      // Map courses to entries
+      const coursesMap = {};
+      courses.forEach(c => {
+        if (!coursesMap[c.advising_id]) coursesMap[c.advising_id] = [];
+        coursesMap[c.advising_id].push(c);
+      });
+      
+      const result = entries.map(entry => ({
+        ...entry,
+        courses: coursesMap[entry.id] || []
+      }));
+      
+      res.json(result);
+    });
+  });
+});// Admin endpoint: Review advising form (approve/reject)
+advising.post('/:id/review', (req, res) => {
+  const advisingId = req.params.id;
+  const { status, admin_message, admin_id } = req.body;
+  
+  // Validate inputs
+  if (!status || !admin_message || !admin_id) {
+    return res.status(400).json({ message: 'status, admin_message, and admin_id are required' });
+  }
+  
+  if (status !== 'Approved' && status !== 'Rejected') {
+    return res.status(400).json({ message: 'status must be either "Approved" or "Rejected"' });
+  }
+  
+  if (!admin_message.trim()) {
+    return res.status(400).json({ message: 'admin_message cannot be empty' });
+  }
+  
+  // Update advising entry
+  const updateQuery = `
+    UPDATE advising_entries 
+    SET status = ?, admin_message = ?, admin_id = ?, reviewed_at = NOW()
+    WHERE id = ?
+  `;
+  
+  connection.execute(updateQuery, [status, admin_message, admin_id, advisingId], (err, result) => {
+    if (err) {
+      console.error('Error updating advising entry:', err.message);
+      return res.status(500).json({ message: err.message });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Advising entry not found' });
+    }
+    
+    // Fetch updated entry with student info and courses for email
+    const detailQuery = `
+      SELECT 
+        ae.*,
+        ui.u_email,
+        ui.u_firstname,
+        ui.u_lastname
+      FROM advising_entries ae
+      JOIN user_info ui ON ae.user_id = ui.u_id
+      WHERE ae.id = ?
+    `;
+    
+    connection.execute(detailQuery, [advisingId], (err2, rows) => {
+      if (err2) {
+        return res.status(500).json({ message: err2.message });
+      }
+      
+      const entry = rows[0];
+      
+      // Fetch courses for email
+      connection.execute('SELECT * FROM advising_courses WHERE advising_id = ?', [advisingId], (err3, courses) => {
+        if (err3) {
+          return res.status(500).json({ message: err3.message });
+        }
+        
+        // Send email notification to student
+        const studentEmail = entry.u_email;
+        const studentName = `${entry.u_firstname} ${entry.u_lastname}`;
+        const statusColor = status === 'Approved' ? '#4caf50' : '#f44336';
+        
+        const coursesList = courses.map(c => `<li>${c.course_level}: ${c.course_name}</li>`).join('');
+        
+        const emailSubject = `Course Advising Request ${status}`;
+        const emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1976d2;">Course Advising Update</h2>
+            <p>Hello ${studentName},</p>
+            <p>Your course advising request for <strong>${entry.current_term}</strong> has been reviewed.</p>
+            
+            <div style="background-color: ${statusColor}; color: white; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin: 0;">Status: ${status}</h3>
+            </div>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h4 style="margin-top: 0;">Admin Feedback:</h4>
+              <p style="margin: 0;">${admin_message}</p>
+            </div>
+            
+            <h4>Requested Courses:</h4>
+            <ul>${coursesList}</ul>
+            
+            <p style="margin-top: 30px;">
+              <a href="${process.env.FRONTEND_URL || 'https://course-advising-4040.web.app'}/course-advising-history" 
+                 style="background-color: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                View Full History
+              </a>
+            </p>
+            
+            <p style="color: #666; font-size: 12px; margin-top: 30px;">
+              This is an automated message. Please do not reply to this email.
+            </p>
+          </div>
+        `;
+        
+        sendEmail(studentEmail, emailSubject, emailBody)
+          .then(() => {
+            console.log(`Email sent to ${studentEmail} for advising ${advisingId}`);
+          })
+          .catch(emailErr => {
+            console.error('Error sending email:', emailErr.message);
+            // Don't fail the request if email fails
+          });
+        
+        res.json({ 
+          status: 'success', 
+          message: `Advising entry ${status.toLowerCase()}`,
+          entry: entry
+        });
+      });
+    });
   });
 });
 

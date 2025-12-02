@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PasswordRequirements, validatePassword } from "./utils/passwordValidation";
 
 export default function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -23,6 +24,14 @@ export default function ChangePassword() {
 
     if (currentPassword === newPassword) {
       setMessage("New password cannot be the same as current password.");
+      setMessageType("error");
+      return;
+    }
+
+    // Validate password strength
+    const { isValid } = validatePassword(newPassword);
+    if (!isValid) {
+      setMessage("Password does not meet requirements.");
       setMessageType("error");
       return;
     }
@@ -82,6 +91,8 @@ export default function ChangePassword() {
           onChange={(e) => setNewPassword(e.target.value)}
           style={styles.input}
         />
+
+        {newPassword && <PasswordRequirements password={newPassword} />}
 
         <button onClick={handleChangePassword} style={styles.button}>
           Update Password
