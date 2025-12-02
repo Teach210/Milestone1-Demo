@@ -6,6 +6,15 @@ export default function CourseAdvisingHistory() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Approved": return "#4caf50";
+      case "Rejected": return "#f44336";
+      case "Pending": return "#ff9800";
+      default: return "#757575";
+    }
+  };
+
   useEffect(() => {
     const fetchHistory = async () => {
       const userId = localStorage.getItem("userId");
@@ -46,7 +55,14 @@ export default function CourseAdvisingHistory() {
                 <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/advising/${r.id}`)}>
                   <td style={styles.td}>{new Date(r.created_at).toLocaleDateString()}</td>
                   <td style={styles.td}>{r.current_term || r.last_term || "-"}</td>
-                  <td style={styles.td}>{r.status}</td>
+                  <td style={styles.td}>
+                    <span style={{
+                      ...styles.statusBadge,
+                      backgroundColor: getStatusColor(r.status)
+                    }}>
+                      {r.status}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -105,5 +121,13 @@ const styles = {
     color: "#1976d2",
     cursor: "pointer",
     fontSize: "16px",
+  },
+  statusBadge: {
+    padding: "4px 12px",
+    borderRadius: "12px",
+    color: "#fff",
+    fontSize: "12px",
+    fontWeight: "600",
+    display: "inline-block",
   }
 };
