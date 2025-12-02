@@ -243,13 +243,6 @@ advising.post('/:id/review', (req, res) => {
             <h4>Requested Courses:</h4>
             <ul>${coursesList}</ul>
             
-            <p style="margin-top: 30px;">
-              <a href="${process.env.FRONTEND_URL || 'https://course-advising-4040.web.app'}/course-advising-history" 
-                 style="background-color: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-                View Full History
-              </a>
-            </p>
-            
             <p style="color: #666; font-size: 12px; margin-top: 30px;">
               This is an automated message. Please do not reply to this email.
             </p>
