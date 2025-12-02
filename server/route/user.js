@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { connection } from "../database/connection.js";
-import { hashPassword, comparePassword } from "../utils/helper.js";
+import { hashPassword, comparePassword, validatePassword, verifyRecaptcha } from "../utils/helper.js";
 import { sendEmail } from "../utils/sendmail.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -22,6 +22,12 @@ user.post("/register", (req, res) => {
 
   if (!u_firstname || !u_lastname || !u_email || !u_password) {
     return res.status(400).json({ message: "All fields are required" });
+  }
+
+  // Validate password strength
+  const passwordValidation = validatePassword(u_password);
+  if (!passwordValidation.isValid) {
+    return res.status(400).json({ message: passwordValidation.message });
   }
 
   const queryCheck = "SELECT * FROM user_info WHERE u_email = ?";
@@ -118,7 +124,17 @@ user.get("/verify", (req, res) => {
 
 // --------- Login ----------
 user.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, recaptchaToken } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password required" });
+  }
+
+  // Verify reCAPTCHA
+  const recaptchaResult = await verifyRecaptcha(recaptchaToken);
+  if (!recaptchaResult.success) {
+    return res.status(400).json({ message: "reCAPTCHA verification failed. Please try again." });
+  }
 
   connection.execute(
     "SELECT * FROM user_info WHERE u_email = ?",
@@ -147,7 +163,8 @@ user.post("/login", async (req, res) => {
       const subject = "Your login verification code";
       const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
       // Development: also log the code to the server console so devs can see it when email is not available
-      if (process.env.NODE_ENV !== "production") {
+      // Always log for admin users even in production since admin email might not be real
+      if (process.env.NODE_ENV !== "production" || user.is_admin === 1) {
         console.log(`2FA code for ${user.u_email} (id ${user.u_id}): ${code}`);
       }
       try {
@@ -202,7 +219,8 @@ user.post("/resend-2fa", (req, res) => {
     twoFactorStore.set(user.u_id, { code, expiresAt });
     const subject = "Your login verification code (resend)";
     const htmlBody = `<p>Your verification code is <strong>${code}</strong>. It will expire in 5 minutes.</p>`;
-    if (process.env.NODE_ENV !== "production") {
+    // Always log for admin users even in production
+    if (process.env.NODE_ENV !== "production" || user.is_admin === 1) {
       console.log(`2FA code (resend) for ${user.u_email} (id ${user.u_id}): ${code}`);
     }
     try {
@@ -313,6 +331,12 @@ user.post("/reset-password", (req, res) => {
   if (!token || !newPassword)
     return res.status(400).json({ message: "Token and new password are required" });
 
+  // Validate password strength
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
+    return res.status(400).json({ message: passwordValidation.message });
+  }
+
   const query = "SELECT * FROM user_info WHERE reset_token = ?";
   connection.execute(query, [token], (err, result) => {
     if (err) return res.status(500).json({ message: err.message });
@@ -337,6 +361,12 @@ user.post("/change-password/:id", (req, res) => {
 
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ message: "Both current and new passwords are required." });
+  }
+
+  // Validate new password strength
+  const passwordValidation = validatePassword(newPassword);
+  if (!passwordValidation.isValid) {
+    return res.status(400).json({ message: passwordValidation.message });
   }
 
   // Get the user from the database

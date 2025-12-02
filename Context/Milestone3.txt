@@ -1,0 +1,169 @@
+MILESTONE 3 REQUIREMENTS - COURSE ADVISING FUNCTIONALITY
+
+=== SECURITY & VALIDATION ===
+
+1. RECAPTCHA IMPLEMENTATION
+   Backend Changes:
+   - Add reCAPTCHA verification endpoint or middleware
+   - Validate reCAPTCHA token from frontend before allowing login
+   - Environment variables: RECAPTCHA_SECRET_KEY
+   
+   Frontend Changes:
+   - Add Google reCAPTCHA v2 or v3 to Login.jsx
+   - Send reCAPTCHA token with login request
+   - Show error if reCAPTCHA validation fails
+
+2. CLICKJACKING PREVENTION
+   Backend Changes:
+   - Add X-Frame-Options header to all responses (DENY or SAMEORIGIN)
+   - Add Content-Security-Policy frame-ancestors directive
+   - Implement in app.js middleware
+   
+   Testing:
+   - Create test .html file attempting to iframe the app
+   - Verify iframe is blocked by browser
+
+3. FAVICON
+   Frontend Changes:
+   - Add favicon.ico to client/public/
+   - Update index.html with favicon link tag
+   - No backend changes needed
+
+4. PASSWORD VALIDATION (REGEX)
+   Backend Changes:
+   - Add password validation function in utils/helper.js
+   - Regex: minimum 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+   - Apply to: /user/register, /user/reset-password, /user/change-password
+   - Return 400 error with message if password doesn't meet requirements
+   
+   Frontend Changes:
+   - Add client-side validation to Register.jsx, ResetPassword.jsx, ChangePassword.jsx
+   - Show password requirements to user
+   - Display validation errors in real-time
+
+5. BACKEND TEST CASES
+   - Set up testing framework (Jest or Mocha/Chai)
+   - Create at least 3 test cases:
+     a) Test user registration with valid data
+     b) Test login with incorrect password
+     c) Test advising entry creation
+   - Run tests with npm test
+   - Document test results
+
+=== ADMIN PORTAL FUNCTIONALITY ===
+
+6. ADMIN DASHBOARD - VIEW ALL ADVISING FORMS
+   Backend:
+   - New endpoint: GET /advising/admin/all
+   - Returns all advising entries with: student name, term, status, created_at
+   - Join with user_info table to get student names
+   - Order by created_at DESC (newest first)
+   - Only accessible by admin users (check is_admin = 1)
+   
+   Frontend:
+   - Create AdminDashboard.jsx component
+   - Display table with columns: Student Name, Term, Status
+   - Make student name clickable (links to detail page)
+   - Add filtering/sorting options (optional)
+   - Protect route - only accessible if user.is_admin === 1
+
+7. ADMIN ADVISING DETAIL & APPROVAL PAGE
+   Backend:
+   - Existing endpoint: GET /advising/:id (already returns full entry with courses)
+   - New endpoint: POST /advising/:id/review
+     Body: { status: "Approved" | "Rejected", admin_message: "feedback text", admin_id: <id> }
+     - Update advising_entries: set status, admin_message, admin_id, reviewed_at
+     - Return updated record
+   
+   Database Changes:
+   - ALTER TABLE advising_entries ADD COLUMN admin_message TEXT;
+   - ALTER TABLE advising_entries ADD COLUMN admin_id INT;
+   - ALTER TABLE advising_entries ADD COLUMN reviewed_at DATETIME;
+   
+   Frontend:
+   - Create AdvisingReview.jsx page
+   - Display student info, term, GPA, current term, courses
+   - Show form with Approve/Reject buttons and textarea for message
+   - On submit: call POST /advising/:id/review
+   - Redirect to admin dashboard after successful submission
+
+8. STATUS UPDATE IMPLEMENTATION
+   Backend:
+   - Implement in POST /advising/:id/review endpoint (from #7)
+   - Validate status is "Approved" or "Rejected"
+   - Validate admin_message is provided and not empty
+   - Update database with new status
+   - Return success response
+
+9. EMAIL NOTIFICATION TO STUDENT (EXTRA CREDIT - 5 POINTS)
+   Backend:
+   - In POST /advising/:id/review endpoint, after updating status:
+     - Get student email from user_info table
+     - Send email via SendGrid with:
+       Subject: "Course Advising Request [Status]"
+       Body: Include status (Approved/Rejected), admin message, term, courses
+     - Log email send success/failure
+   
+   Email Template:
+   - Professional formatting with status clearly visible
+   - Include link to view full advising history on frontend
+   - Include admin feedback message
+
+=== STUDENT PORTAL FUNCTIONALITY ===
+
+10. STUDENT VIEW UPDATED STATUS
+    Backend:
+    - Existing endpoint: GET /advising/history/:userId
+    - Ensure it returns: status, admin_message, reviewed_at
+    - Sort by created_at DESC
+    
+    Frontend:
+    - Update CourseAdvisingHistory.jsx
+    - Display status with color coding (Pending=yellow, Approved=green, Rejected=red)
+    - Show admin_message if status is Approved or Rejected
+    - Show reviewed_at date if available
+    - Add visual indicators for status changes
+
+=== IMPLEMENTATION ORDER ===
+
+Phase 1 - Security & Validation (Requirements 1-5):
+  1. Password regex validation (backend + frontend)
+  2. Clickjacking prevention headers
+  3. reCAPTCHA integration
+  4. Add favicon
+  5. Create test cases
+
+Phase 2 - Database Schema Updates:
+  1. Add admin_message, admin_id, reviewed_at columns to advising_entries
+
+Phase 3 - Admin Portal (Requirements 6-9):
+  1. Create GET /advising/admin/all endpoint
+  2. Create POST /advising/:id/review endpoint
+  3. Build AdminDashboard.jsx
+  4. Build AdvisingReview.jsx
+  5. Add email notification on status change
+
+Phase 4 - Student Portal (Requirement 10):
+  1. Update GET /advising/history/:userId to include new fields
+  2. Update CourseAdvisingHistory.jsx to display status and admin message
+
+=== TESTING CHECKLIST ===
+- [ ] reCAPTCHA blocks login without verification
+- [ ] Clickjacking test HTML fails to iframe app
+- [ ] Favicon appears in browser tab
+- [ ] Password regex rejects weak passwords
+- [ ] At least 3 backend tests pass
+- [ ] Admin can view all advising forms
+- [ ] Admin can approve/reject with message
+- [ ] Status updates in database correctly
+- [ ] Student receives email on status change (extra credit)
+- [ ] Student sees updated status in history
+
+=== DEPLOYMENT NOTES ===
+After implementing features:
+- Update .env with RECAPTCHA_SECRET_KEY
+- Run database migration for new columns
+- Rebuild frontend: npm run build
+- Redeploy frontend: firebase deploy --only hosting
+- Push backend changes to trigger Render redeploy
+- Test all flows end-to-end on deployed URLs
