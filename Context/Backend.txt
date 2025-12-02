@@ -12,6 +12,7 @@ ENVIRONMENT VARIABLES SET ON RENDER:
 - SMTP_EMAIL=siam.sadid@gmail.com
 - SMTP_PASSWORD=<SendGrid API key>
 - SENDGRID_API_KEY (optional, uses SMTP_PASSWORD if not set)
+- RECAPTCHA_SECRET_KEY=6LdsdR4sAAAAAJVPJAGr781ZGAHQ10R_DC1Pd2II
 
 KEY BACKEND CHANGES:
 1. Replaced all hardcoded localhost URLs with environment variables (BACKEND_URL, FRONTEND_URL)

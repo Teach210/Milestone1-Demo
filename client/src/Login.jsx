@@ -1,14 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; // 👈 import for navigation
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [recaptchaToken, setRecaptchaToken] = useState("");
   const navigate = useNavigate(); // 👈 used to go to the welcome page
+
+  useEffect(() => {
+    // Define global callback for reCAPTCHA
+    window.onRecaptchaSuccess = (token) => {
+      setRecaptchaToken(token);
+    };
+
+    return () => {
+      delete window.onRecaptchaSuccess;
+    };
+  }, []);
 
 const handleLogin = async () => {
   if (!email.trim() || !password.trim()) {
     alert("Please enter both email and password.");
+    return;
+  }
+
+  if (!recaptchaToken) {
+    alert("Please complete the reCAPTCHA verification.");
     return;
   }
 
@@ -20,7 +37,7 @@ const handleLogin = async () => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, recaptchaToken }),
     });
 
     const data = await response.json();
@@ -75,6 +92,12 @@ const handleLogin = async () => {
           onChange={(e) => setPassword(e.target.value)}
           style={styles.input}
         />
+        <div
+          className="g-recaptcha"
+          data-sitekey="6LdsdR4sAAAAAETrX6ndFciFfJ9uz4UVJjUb5BEj"
+          data-callback="onRecaptchaSuccess"
+          style={{ display: 'flex', justifyContent: 'center', marginBottom: '18px' }}
+        ></div>
         <button onClick={handleLogin} style={styles.button}>
           Sign In
         </button>

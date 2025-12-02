@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clickjacking Protection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #2563eb;
+        }
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #ef4444;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🛡️ Clickjacking Protection Test</h1>
+
+    <div class="test-section">
+        <h2>Test 1: Deployed Backend</h2>
+        <p><strong>Target:</strong> <code>https://milestone2-demo.onrender.com</code></p>
+        <p><strong>Expected Result:</strong> ❌ Iframe should be BLOCKED (blank or error message)</p>
+        
+        <iframe 
+            src="https://milestone2-demo.onrender.com" 
+            title="Backend Clickjacking Test"
+            sandbox="allow-same-origin allow-scripts">
+        </iframe>
+    </div>
+
+    <script>
+        // Log iframe load attempts
+        const iframes = document.querySelectorAll('iframe');
+        iframes.forEach((iframe, index) => {
+            iframe.addEventListener('load', () => {
+                console.log(`Iframe ${index + 1} attempted to load: ${iframe.src}`);
+            });
+            
+            iframe.addEventListener('error', (e) => {
+                console.error(`Iframe ${index + 1} failed to load: ${iframe.src}`, e);
+            });
+        });
+
+        // Check after 3 seconds
+        setTimeout(() => {
+
+        }, 3000);
+    </script>
+</body>
+</html>

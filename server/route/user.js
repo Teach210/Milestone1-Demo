@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { connection } from "../database/connection.js";
-import { hashPassword, comparePassword, validatePassword } from "../utils/helper.js";
+import { hashPassword, comparePassword, validatePassword, verifyRecaptcha } from "../utils/helper.js";
 import { sendEmail } from "../utils/sendmail.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
@@ -124,7 +124,17 @@ user.get("/verify", (req, res) => {
 
 // --------- Login ----------
 user.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, recaptchaToken } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password required" });
+  }
+
+  // Verify reCAPTCHA
+  const recaptchaResult = await verifyRecaptcha(recaptchaToken);
+  if (!recaptchaResult.success) {
+    return res.status(400).json({ message: "reCAPTCHA verification failed. Please try again." });
+  }
 
   connection.execute(
     "SELECT * FROM user_info WHERE u_email = ?",

@@ -69,3 +69,43 @@ export function validatePassword(password) {
 
     return { isValid: true, message: "Password is strong" };
 }
+
+/**
+ * Verifies Google reCAPTCHA token
+ * @param {string} token - The reCAPTCHA token from frontend
+ * @returns {Promise<object>} - { success: boolean, message: string }
+ */
+export async function verifyRecaptcha(token) {
+    if (!token) {
+        return { success: false, message: "reCAPTCHA token is required" };
+    }
+
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    if (!secretKey) {
+        console.error('RECAPTCHA_SECRET_KEY not configured');
+        return { success: false, message: "reCAPTCHA not configured on server" };
+    }
+
+    try {
+        const axios = (await import('axios')).default;
+        const response = await axios.post(
+            'https://www.google.com/recaptcha/api/siteverify',
+            null,
+            {
+                params: {
+                    secret: secretKey,
+                    response: token
+                }
+            }
+        );
+
+        if (response.data.success) {
+            return { success: true, message: "reCAPTCHA verified" };
+        } else {
+            return { success: false, message: "reCAPTCHA verification failed" };
+        }
+    } catch (error) {
+        console.error('reCAPTCHA verification error:', error.message);
+        return { success: false, message: "Error verifying reCAPTCHA" };
+    }
+}
