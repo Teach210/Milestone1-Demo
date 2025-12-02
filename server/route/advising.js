@@ -35,6 +35,39 @@ connection.execute(createCoursesTable, (err) => {
   else console.log("advising_courses table ensured");
 });
 
+// Add admin review columns if they don't exist (Milestone 3 Phase 2)
+const addAdminColumns = () => {
+  // Check if columns exist before adding
+  connection.query("SHOW COLUMNS FROM advising_entries LIKE 'admin_message'", (err, result) => {
+    if (!err && result.length === 0) {
+      connection.execute("ALTER TABLE advising_entries ADD COLUMN admin_message TEXT", (err2) => {
+        if (err2) console.error("Error adding admin_message:", err2.message);
+        else console.log("Added admin_message column");
+      });
+    }
+  });
+  
+  connection.query("SHOW COLUMNS FROM advising_entries LIKE 'admin_id'", (err, result) => {
+    if (!err && result.length === 0) {
+      connection.execute("ALTER TABLE advising_entries ADD COLUMN admin_id INT", (err2) => {
+        if (err2) console.error("Error adding admin_id:", err2.message);
+        else console.log("Added admin_id column");
+      });
+    }
+  });
+  
+  connection.query("SHOW COLUMNS FROM advising_entries LIKE 'reviewed_at'", (err, result) => {
+    if (!err && result.length === 0) {
+      connection.execute("ALTER TABLE advising_entries ADD COLUMN reviewed_at DATETIME", (err2) => {
+        if (err2) console.error("Error adding reviewed_at:", err2.message);
+        else console.log("Added reviewed_at column");
+      });
+    }
+  });
+};
+
+addAdminColumns();
+
 // Create a new advising entry
 advising.post("/", (req, res) => {
   const { userId, last_term, last_gpa, current_term, courses } = req.body;
