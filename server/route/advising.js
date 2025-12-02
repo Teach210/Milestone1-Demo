@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { connection } from "../database/connection.js";
+import { sendEmail } from "../utils/sendmail.js";
 
 const advising = Router();
 
@@ -191,16 +192,84 @@ advising.post('/:id/review', (req, res) => {
       return res.status(404).json({ message: 'Advising entry not found' });
     }
     
-    // Fetch updated entry
-    connection.execute('SELECT * FROM advising_entries WHERE id = ?', [advisingId], (err2, rows) => {
+    // Fetch updated entry with student info and courses for email
+    const detailQuery = `
+      SELECT 
+        ae.*,
+        ui.u_email,
+        ui.u_firstname,
+        ui.u_lastname
+      FROM advising_entries ae
+      JOIN user_info ui ON ae.user_id = ui.u_id
+      WHERE ae.id = ?
+    `;
+    
+    connection.execute(detailQuery, [advisingId], (err2, rows) => {
       if (err2) {
         return res.status(500).json({ message: err2.message });
       }
       
-      res.json({ 
-        status: 'success', 
-        message: `Advising entry ${status.toLowerCase()}`,
-        entry: rows[0]
+      const entry = rows[0];
+      
+      // Fetch courses for email
+      connection.execute('SELECT * FROM advising_courses WHERE advising_id = ?', [advisingId], (err3, courses) => {
+        if (err3) {
+          return res.status(500).json({ message: err3.message });
+        }
+        
+        // Send email notification to student
+        const studentEmail = entry.u_email;
+        const studentName = `${entry.u_firstname} ${entry.u_lastname}`;
+        const statusColor = status === 'Approved' ? '#4caf50' : '#f44336';
+        
+        const coursesList = courses.map(c => `<li>${c.course_level}: ${c.course_name}</li>`).join('');
+        
+        const emailSubject = `Course Advising Request ${status}`;
+        const emailBody = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1976d2;">Course Advising Update</h2>
+            <p>Hello ${studentName},</p>
+            <p>Your course advising request for <strong>${entry.current_term}</strong> has been reviewed.</p>
+            
+            <div style="background-color: ${statusColor}; color: white; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin: 0;">Status: ${status}</h3>
+            </div>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h4 style="margin-top: 0;">Admin Feedback:</h4>
+              <p style="margin: 0;">${admin_message}</p>
+            </div>
+            
+            <h4>Requested Courses:</h4>
+            <ul>${coursesList}</ul>
+            
+            <p style="margin-top: 30px;">
+              <a href="${process.env.FRONTEND_URL || 'https://course-advising-4040.web.app'}/course-advising-history" 
+                 style="background-color: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                View Full History
+              </a>
+            </p>
+            
+            <p style="color: #666; font-size: 12px; margin-top: 30px;">
+              This is an automated message. Please do not reply to this email.
+            </p>
+          </div>
+        `;
+        
+        sendEmail(studentEmail, emailSubject, emailBody)
+          .then(() => {
+            console.log(`Email sent to ${studentEmail} for advising ${advisingId}`);
+          })
+          .catch(emailErr => {
+            console.error('Error sending email:', emailErr.message);
+            // Don't fail the request if email fails
+          });
+        
+        res.json({ 
+          status: 'success', 
+          message: `Advising entry ${status.toLowerCase()}`,
+          entry: entry
+        });
       });
     });
   });
