@@ -119,7 +119,7 @@ advising.get('/admin/all', (req, res) => {
     FROM advising_entries ae
     JOIN user_info ui ON ae.user_id = ui.u_id
     ORDER BY ae.created_at DESC
-  `;
+    `;
   
   connection.query(query, (err, entries) => {
     if (err) {
@@ -156,9 +156,7 @@ advising.get('/admin/all', (req, res) => {
       res.json(result);
     });
   });
-});
-
-// Admin endpoint: Review advising form (approve/reject)
+});// Admin endpoint: Review advising form (approve/reject)
 advising.post('/:id/review', (req, res) => {
   const advisingId = req.params.id;
   const { status, admin_message, admin_id } = req.body;
