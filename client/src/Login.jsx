@@ -13,8 +13,43 @@ export default function Login() {
       setRecaptchaToken(token);
     };
 
+    // Wait for grecaptcha to load, then render the widget
+    const renderRecaptcha = () => {
+      if (window.grecaptcha && window.grecaptcha.render) {
+        try {
+          // Check if widget already exists
+          const container = document.querySelector('.g-recaptcha');
+          if (container && !container.hasChildNodes()) {
+            window.grecaptcha.render(container, {
+              sitekey: '6LdsdR4sAAAAAETrX6ndFciFfJ9uz4UVJjUb5BEj',
+              callback: 'onRecaptchaSuccess'
+            });
+          }
+        } catch (error) {
+          console.log('reCAPTCHA already rendered or error:', error);
+        }
+      }
+    };
+
+    // Check if grecaptcha is already loaded
+    if (window.grecaptcha) {
+      renderRecaptcha();
+    } else {
+      // Wait for grecaptcha to load
+      window.onRecaptchaLoad = renderRecaptcha;
+    }
+
     return () => {
       delete window.onRecaptchaSuccess;
+      delete window.onRecaptchaLoad;
+      // Reset reCAPTCHA on unmount
+      if (window.grecaptcha && window.grecaptcha.reset) {
+        try {
+          window.grecaptcha.reset();
+        } catch (e) {
+          // Ignore if widget doesn't exist
+        }
+      }
     };
   }, []);
 
@@ -66,10 +101,20 @@ const handleLogin = async () => {
     } else {
       // ❌ Login failed, show error message from backend
       alert(data.message);
+      // Reset reCAPTCHA on failed login
+      if (window.grecaptcha && window.grecaptcha.reset) {
+        window.grecaptcha.reset();
+        setRecaptchaToken("");
+      }
     }
   } catch (err) {
     console.error("Login error:", err);
     alert("An error occurred. Please try again later.");
+    // Reset reCAPTCHA on error
+    if (window.grecaptcha && window.grecaptcha.reset) {
+      window.grecaptcha.reset();
+      setRecaptchaToken("");
+    }
   }
 };
 
